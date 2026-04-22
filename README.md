@@ -137,4 +137,4 @@ See \`.env.example\` for complete list.
 
 ## Support
 
-For issues, check [docs/](docs/) or create a GitHub issue.
+For issues, check (docs/) or create a GitHub issue.
