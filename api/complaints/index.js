@@ -1,64 +1,57 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
+import { supabaseAdmin } from '../../lib/supabase.js';
+import { requireAuth } from '../middleware/auth.js';
 
-// Only importing files that ACTUALLY exist in your repo right now
-import registerHandler from './auth/register.js';
-import loginHandler from './auth/login.js';
-import verifyOtpHandler from './auth/verify-otp.js';
-import meHandler from './auth/me.js';
-import complaintsHandler from './complaints/index.js';
-import statusHandler from './complaints/[id]/status.js';
-import geojsonHandler from './complaints/geojson.js';
+async function handleGET(req, res) {
+  const { ward, status, limit = '50', offset = '0' } = req.query;
 
-dotenv.config();
-const app = express();
+  try {
+    let query = supabaseAdmin.from('complaints').select('*');
+    if (ward) query = query.eq('ward', ward);
+    if (status) query = query.eq('status', status);
 
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true
-}));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+    const { data, error } = await query.range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+    
+    if (error) return res.status(400).json({ error: error.message });
+    res.status(200).json({ data, count: data.length, limit: parseInt(limit), offset: parseInt(offset) });
+  } catch (error) {
+    console.error('Error fetching complaints:', error);
+    res.status(500).json({ error: 'Failed to fetch complaints' });
+  }
+}
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV
-  });
-});
+async function handlePOST(req, res) {
+  const { data: user, error: authError } = await requireAuth(req);
+  if (authError) return res.status(401).json({ error: 'Unauthorized' });
 
-// Active Routes
-app.post('/api/auth/register', registerHandler);
-app.post('/api/auth/login', loginHandler);
-app.post('/api/auth/verify-otp', verifyOtpHandler);
-app.get('/api/auth/me', meHandler);
+  const { title, description, category, severity, latitude, longitude, ward } = req.body;
 
-app.get('/api/complaints', complaintsHandler);
-app.post('/api/complaints', complaintsHandler);
-app.get('/api/complaints/geojson', geojsonHandler);
-app.patch('/api/complaints/:id/status', statusHandler);
+  if (!title || !category || !latitude || !longitude || !ward) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
 
-// Temporarily disabled routes (Missing files)
-// app.get('/api/complaints/:id', complaintIdHandler);
-// app.delete('/api/complaints/:id', deleteHandler);
-// app.get('/api/admin/stats', statsHandler);
-// app.get('/api/admin/queue', queueHandler);
-// app.get('/api/admin/users', usersHandler);
-// app.patch('/api/admin/users/:id', userIdHandler);
+  try {
+    const { data, error } = await supabaseAdmin.from('complaints').insert({
+      user_id: user.id,
+      title,
+      description: description || '',
+      category,
+      severity: severity || 'medium',
+      latitude: parseFloat(latitude),
+      longitude: parseFloat(longitude),
+      ward,
+      status: 'submitted'
+    }).select();
 
-// Error handling
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message
-  });
-});
+    if (error) return res.status(400).json({ error: error.message });
+    res.status(201).json({ data: data[0], message: 'Complaint created successfully' });
+  } catch (error) {
+    console.error('Error creating complaint:', error);
+    res.status(500).json({ error: 'Failed to create complaint' });
+  }
+}
 
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
-
-export default app;
+export default async function handler(req, res) {
+  if (req.method === 'GET') return handleGET(req, res);
+  if (req.method === 'POST') return handlePOST(req, res);
+  res.status(405).json({ error: 'Method not allowed' });
+}
