@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import { supabaseAdmin } from '../../lib/supabase.js';
 
 export async function requireAuth(req) {
   const authHeader = req.headers.authorization;
@@ -7,32 +7,35 @@ export async function requireAuth(req) {
     return { error: 'Missing Authorization header' };
   }
 
-  const token = authHeader.startsWith('Bearer ') 
-    ? authHeader.slice(7)
-    : authHeader;
+  // Extract just the token part
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    return { data: decoded };
+    // Let Supabase natively verify its own token!
+    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    
+    if (error || !data.user) {
+      return { error: 'Invalid or expired token' };
+    }
+    
+    // Returns the properly formatted user object (with user.id)
+    return { data: data.user }; 
   } catch (error) {
-    return { error: 'Invalid or expired token' };
+    console.error('Auth Middleware Error:', error);
+    return { error: 'Authentication failed' };
   }
 }
 
-export function optionalAuth(req) {
+export async function optionalAuth(req) {
   const authHeader = req.headers.authorization;
-  
-  if (!authHeader) {
-    return { data: null };
-  }
+  if (!authHeader) return { data: null };
 
-  const token = authHeader.startsWith('Bearer ') 
-    ? authHeader.slice(7)
-    : authHeader;
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    return { data: decoded };
+    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    if (error || !data.user) return { data: null };
+    return { data: data.user };
   } catch (error) {
     return { data: null };
   }
