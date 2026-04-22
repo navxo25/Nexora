@@ -1,18 +1,36 @@
 {
-  "name": "nexora",
+  "name": "nexora-backend",
   "version": "1.0.0",
-  "description": "Nexora Project",
-  "main": "index.js",
+  "description": "Nexora citizen complaint platform backend",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
-    "start": "node index.js",
-    "build": "echo 'No build step required' && exit 0"
+    "dev": "node --watch api/index.js",
+    "start": "node api/index.js",
+    "test": "jest --coverage --forceExit",
+    "test:watch": "jest --watch",
+    "lint": "eslint . --ext .js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "deploy": "vercel"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.38.0",
+    "axios": "^1.6.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.2",
-    "express-rate-limit": "^7.2.0"
+    "jsonwebtoken": "^9.1.0",
+    "nodemailer": "^6.9.7",
+    "rateLimit": "^0.0.6"
   },
-  "engines": {
-    "node": ">=18.x"
+  "devDependencies": {
+    "@babel/preset-env": "^7.23.0",
+    "eslint": "^8.50.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.0.3",
+    "supertest": "^6.3.3"
   }
 }
