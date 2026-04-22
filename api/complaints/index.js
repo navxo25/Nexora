@@ -38,6 +38,7 @@ async function handlePOST(req, res) {
       severity: severity || 'medium',
       latitude: parseFloat(latitude),
       longitude: parseFloat(longitude),
+      location: `SRID=4326;POINT(${longitude} ${latitude})`,
       ward,
       status: 'submitted'
     }).select();
