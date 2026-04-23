@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import registerHandler from './auth/register.js';
 import loginHandler from './auth/login.js';
 import verifyOtpHandler from './auth/verify-otp.js';
+import requestOtpHandler from './auth/request-otp.js';
 import meHandler from './auth/me.js';
 import complaintsHandler from './complaints/index.js';
 import statusHandler from './complaints/[id]/status.js';
@@ -40,6 +41,7 @@ app.get('/api/complaints', complaintsHandler);
 app.post('/api/complaints', complaintsHandler);
 app.get('/api/complaints/geojson', geojsonHandler);
 app.patch('/api/complaints/:id/status', statusHandler);
+app.post('/api/auth/request-otp', requestOtpHandler);
 
 // Temporarily disabled routes (Missing files)
 // app.get('/api/complaints/:id', complaintIdHandler);
