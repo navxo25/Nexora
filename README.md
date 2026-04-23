@@ -1,4 +1,4 @@
-# NEXORA Backend
+# NEXORA
 
 Citizen complaint management platform backend built with Node.js, Supabase, and Vercel.
 
