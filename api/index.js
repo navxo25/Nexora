@@ -6,11 +6,12 @@ import dotenv from 'dotenv';
 import registerHandler from './auth/register.js';
 import loginHandler from './auth/login.js';
 import verifyOtpHandler from './auth/verify-otp.js';
-import requestOtpHandler from './auth/request-otp.js'; // <-- NEW IMPORT
+import requestOtpHandler from './auth/request-otp.js'; 
 import meHandler from './auth/me.js';
 import complaintsHandler from './complaints/index.js';
 import statusHandler from './complaints/[id]/status.js';
 import geojsonHandler from './complaints/geojson.js';
+import complaintByIdHandler from './complaints/[id]/index.js';
 
 dotenv.config();
 const app = express();
@@ -41,11 +42,13 @@ app.get('/api/auth/me', meHandler);
 app.get('/api/complaints', complaintsHandler);
 app.post('/api/complaints', complaintsHandler);
 app.get('/api/complaints/geojson', geojsonHandler);
-app.patch('/api/complaints/:id/status', statusHandler);
-
+app.patch('/api/complaints/:id/status', statusHandler);'
+ app.get('/api/complaints/:id', complaintIdHandler);
+app.get('/api/complaints/:id', complaintByIdHandler);
+app.delete('/api/complaints/:id', complaintByIdHandler);
+app.delete('/api/complaints/:id', deleteHandler);
 // Temporarily disabled routes (Missing files)
 // app.get('/api/complaints/:id', complaintIdHandler);
-// app.delete('/api/complaints/:id', deleteHandler);
 // app.get('/api/admin/stats', statsHandler);
 // app.get('/api/admin/queue', queueHandler);
 // app.get('/api/admin/users', usersHandler);
