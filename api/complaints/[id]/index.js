@@ -1,8 +1,8 @@
 import { supabaseAdmin } from '../../../lib/supabase.js';
 
 export default async function handler(req, res) {
-  // Vercel extracts 'id' from the URL path /api/complaints/[id]
-  const { id } = req.query;
+  // Check req.params (Express) first, fallback to req.query (Vercel Serverless)
+  const id = req.params?.id || req.query?.id;
 
   if (!id) {
     return res.status(400).json({ error: 'Complaint ID is required' });
