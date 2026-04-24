@@ -6,13 +6,23 @@ async function handleGET(req, res) {
 
   try {
     let query = supabaseAdmin.from('complaints').select('*');
+
     if (ward) query = query.eq('ward', ward);
     if (status) query = query.eq('status', status);
 
-    const { data, error } = await query.range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
-    
+    const { data, error } = await query.range(
+      parseInt(offset),
+      parseInt(offset) + parseInt(limit) - 1
+    );
+
     if (error) return res.status(400).json({ error: error.message });
-    res.status(200).json({ data, count: data.length, limit: parseInt(limit), offset: parseInt(offset) });
+
+    res.status(200).json({
+      data,
+      count: data.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
   } catch (error) {
     console.error('Error fetching complaints:', error);
     res.status(500).json({ error: 'Failed to fetch complaints' });
@@ -20,10 +30,17 @@ async function handleGET(req, res) {
 }
 
 async function handlePOST(req, res) {
-  const { data: user, error: authError } = await requireAuth(req);
-//  if (authError) return res.status(401).json({ error: 'Unauthorized' });
+  // Try to get user from auth token
+  const { data: authData } = await requireAuth(req);
+  
+  const { title, description, category, severity, latitude, longitude, ward, userId } = req.body;
 
-  const { title, description, category, severity, latitude, longitude, ward } = req.body;
+  // Determine which ID to use: the one from the token OR the one passed in the body
+  const finalUserId = authData?.id || userId;
+
+  if (!finalUserId) {
+    return res.status(401).json({ error: 'User ID is required (Login or provide userId)' });
+  }
 
   if (!title || !category || !latitude || !longitude || !ward) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -31,7 +48,7 @@ async function handlePOST(req, res) {
 
   try {
     const { data, error } = await supabaseAdmin.from('complaints').insert({
-      user_id: user.id,
+      user_id: finalUserId,
       title,
       description: description || '',
       category,
@@ -44,7 +61,11 @@ async function handlePOST(req, res) {
     }).select();
 
     if (error) return res.status(400).json({ error: error.message });
-    res.status(201).json({ data: data[0], message: 'Complaint created successfully' });
+
+    res.status(201).json({ 
+      data: data[0], 
+      message: 'Complaint created successfully' 
+    });
   } catch (error) {
     console.error('Error creating complaint:', error);
     res.status(500).json({ error: 'Failed to create complaint' });
@@ -54,5 +75,6 @@ async function handlePOST(req, res) {
 export default async function handler(req, res) {
   if (req.method === 'GET') return handleGET(req, res);
   if (req.method === 'POST') return handlePOST(req, res);
+  
   res.status(405).json({ error: 'Method not allowed' });
 }
