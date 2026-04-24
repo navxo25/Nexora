@@ -33,20 +33,19 @@ app.get('/api/health', (req, res) => {
 });
 
 // Active Routes
-app.post('/api/auth/register', registerHandler);
-app.post('/api/auth/login', loginHandler);
-app.post('/api/auth/verify-otp', verifyOtpHandler);
-app.post('/api/auth/request-otp', requestOtpHandler);
-app.get('/api/auth/me', meHandler);
+// Using app.all() lets the individual handlers manage their own 405 Method Not Allowed logic
+app.all('/api/auth/register', registerHandler);
+app.all('/api/auth/login', loginHandler);
+app.all('/api/auth/verify-otp', verifyOtpHandler);
+app.all('/api/auth/request-otp', requestOtpHandler);
+app.all('/api/auth/me', meHandler);
 
-app.get('/api/complaints', complaintsHandler);
-app.post('/api/complaints', complaintsHandler);
-app.get('/api/complaints/geojson', geojsonHandler);
+app.all('/api/complaints', complaintsHandler);
+app.all('/api/complaints/geojson', geojsonHandler);
 
-app.get('/api/complaints/:id', complaintByIdHandler);
-app.delete('/api/complaints/:id', complaintByIdHandler);
-
-app.patch('/api/complaints/:id/status', statusHandler);// Temporarily disabled routes (Missing files)
+app.all('/api/complaints/:id', complaintByIdHandler);
+app.all('/api/complaints/:id/status', statusHandler);
+// Temporarily disabled routes (Missing files)
 // app.get('/api/complaints/:id', complaintIdHandler);
 // app.get('/api/admin/stats', statsHandler);
 // app.get('/api/admin/queue', queueHandler);
