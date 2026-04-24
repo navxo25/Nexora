@@ -30,17 +30,18 @@ async function handleGET(req, res) {
 }
 
 async function handlePOST(req, res) {
-  // Try to get user from auth token
-  const { data: authData } = await requireAuth(req);
+  // 1. STRICT AUTH CHECK: Request must have a valid token
+  const { data: authData, error: authError } = await requireAuth(req);
   
-  const { title, description, category, severity, latitude, longitude, ward, userId } = req.body;
-
-  // Determine which ID to use: the one from the token OR the one passed in the body
-  const finalUserId = authData?.id || userId;
-
-  if (!finalUserId) {
-    return res.status(401).json({ error: 'User ID is required (Login or provide userId)' });
+  if (authError || !authData?.id) {
+    return res.status(401).json({ error: 'Unauthorized: Please log in to submit a complaint' });
   }
+
+  // 2. Extract fields from the request body (Note: userId is no longer accepted from the body)
+  const { title, description, category, severity, latitude, longitude, ward } = req.body;
+  
+  // 3. Lock the user ID to the person who is actually logged in
+  const finalUserId = authData.id; 
 
   if (!title || !category || !latitude || !longitude || !ward) {
     return res.status(400).json({ error: 'Missing required fields' });
