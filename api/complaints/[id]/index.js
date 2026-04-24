@@ -1,82 +1,59 @@
 import { supabaseAdmin } from '../../../lib/supabase.js';
-import { requireAuth } from '../../middleware/auth.js';
 
 export default async function handler(req, res) {
-  const { id } = req.query;  // Vercel injects this from the URL
+  // Vercel extracts 'id' from the URL path /api/complaints/[id]
+  const { id } = req.query;
 
-  // ── GET single complaint ───────────────────────────────────────
+  if (!id) {
+    return res.status(400).json({ error: 'Complaint ID is required' });
+  }
+
+  // Handle GET: Fetch a single complaint
   if (req.method === 'GET') {
     try {
-      // Fetch the complaint itself
-      const { data: complaint, error } = await supabaseAdmin
+      const { data, error } = await supabaseAdmin
         .from('complaints')
         .select(`
           *,
-          users ( id, full_name, email ),
-          complaint_status_history (
-            id, old_status, new_status, reason, created_at,
-            users ( full_name )
+          user:user_id (
+            id,
+            email
           )
         `)
         .eq('id', id)
         .single();
 
-      if (error || !complaint) {
+      if (error || !data) {
         return res.status(404).json({ error: 'Complaint not found' });
       }
 
-      return res.status(200).json({ data: complaint });
-    } catch (err) {
-      console.error('Error fetching complaint:', err);
-      return res.status(500).json({ error: 'Failed to fetch complaint' });
+      return res.status(200).json({ data });
+    } catch (error) {
+      console.error('Error fetching complaint:', error);
+      return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  // ── DELETE complaint (owner or admin only) ─────────────────────
+  // Handle DELETE: Remove a complaint
   if (req.method === 'DELETE') {
-    const { data: user, error: authError } = await requireAuth(req);
-    if (authError) return res.status(401).json({ error: 'Unauthorized' });
-
     try {
-      // First check the complaint exists and who owns it
-      const { data: complaint } = await supabaseAdmin
-        .from('complaints')
-        .select('user_id, status')
-        .eq('id', id)
-        .single();
-
-      if (!complaint) {
-        return res.status(404).json({ error: 'Complaint not found' });
-      }
-
-      // Get requester role
-      const { data: userProfile } = await supabaseAdmin
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      // Only the owner OR an admin can delete
-      const isOwner = complaint.user_id === user.id;
-      const isAdmin = ['admin', 'moderator'].includes(userProfile.role);
-
-      if (!isOwner && !isAdmin) {
-        return res.status(403).json({ error: 'Cannot delete this complaint' });
-      }
-
-      const { error: delError } = await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('complaints')
         .delete()
         .eq('id', id);
 
-      if (delError) return res.status(400).json({ error: delError.message });
-
-      return res.status(200).json({ message: 'Complaint deleted' });
-    } catch (err) {
-      console.error('Error deleting complaint:', err);
-      return res.status(500).json({ error: 'Failed to delete complaint' });
+      if (error) {
+        return res.status(400).json({ error: error.message });
+      }
+      
+      return res.status(200).json({ message: 'Complaint deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting complaint:', error);
+      return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
-  res.status(405).json({ error: 'Method not allowed' });
+  // Fallback for unsupported methods
+  res.setHeader('Allow', ['GET', 'DELETE']);
+  res.status(405).json({ error: `Method ${req.method} not allowed` });
 }
