@@ -1,59 +1,80 @@
-import { supabaseAdmin } from '../../../lib/supabase.js';
+import { supabaseAdmin } from '../../lib/supabase.js';
+import { requireAuth } from '../middleware/auth.js';
+
+async function handleGET(req, res) {
+  const { ward, status, limit = '50', offset = '0' } = req.query;
+
+  try {
+    let query = supabaseAdmin.from('complaints').select('*');
+
+    if (ward) query = query.eq('ward', ward);
+    if (status) query = query.eq('status', status);
+
+    const { data, error } = await query.range(
+      parseInt(offset),
+      parseInt(offset) + parseInt(limit) - 1
+    );
+
+    if (error) return res.status(400).json({ error: error.message });
+
+    res.status(200).json({
+      data,
+      count: data.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+  } catch (error) {
+    console.error('Error fetching complaints:', error);
+    res.status(500).json({ error: 'Failed to fetch complaints' });
+  }
+}
+
+async function handlePOST(req, res) {
+  // Try to get user from auth token
+  const { data: authData } = await requireAuth(req);
+  
+  const { title, description, category, severity, latitude, longitude, ward, userId } = req.body;
+
+  // Determine which ID to use: the one from the token OR the one passed in the body
+  const finalUserId = authData?.id || userId;
+
+  if (!finalUserId) {
+    return res.status(401).json({ error: 'User ID is required (Login or provide userId)' });
+  }
+
+  if (!title || !category || !latitude || !longitude || !ward) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin.from('complaints').insert({
+      user_id: finalUserId,
+      title,
+      description: description || '',
+      category,
+      severity: severity || 'medium',
+      latitude: parseFloat(latitude),
+      longitude: parseFloat(longitude),
+      location: `SRID=4326;POINT(${longitude} ${latitude})`,
+      ward,
+      status: 'submitted'
+    }).select();
+
+    if (error) return res.status(400).json({ error: error.message });
+
+    res.status(201).json({ 
+      data: data[0], 
+      message: 'Complaint created successfully' 
+    });
+  } catch (error) {
+    console.error('Error creating complaint:', error);
+    res.status(500).json({ error: 'Failed to create complaint' });
+  }
+}
 
 export default async function handler(req, res) {
-  // Vercel extracts 'id' from the URL path /api/complaints/[id]
-  const { id } = req.query;
-
-  if (!id) {
-    return res.status(400).json({ error: 'Complaint ID is required' });
-  }
-
-  // Handle GET: Fetch a single complaint
-  if (req.method === 'GET') {
-    try {
-      const { data, error } = await supabaseAdmin
-        .from('complaints')
-        .select(`
-          *,
-          user:user_id (
-            id,
-            email
-          )
-        `)
-        .eq('id', id)
-        .single();
-
-      if (error || !data) {
-        return res.status(404).json({ error: 'Complaint not found' });
-      }
-
-      return res.status(200).json({ data });
-    } catch (error) {
-      console.error('Error fetching complaint:', error);
-      return res.status(500).json({ error: 'Internal server error' });
-    }
-  }
-
-  // Handle DELETE: Remove a complaint
-  if (req.method === 'DELETE') {
-    try {
-      const { error } = await supabaseAdmin
-        .from('complaints')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        return res.status(400).json({ error: error.message });
-      }
-      
-      return res.status(200).json({ message: 'Complaint deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting complaint:', error);
-      return res.status(500).json({ error: 'Internal server error' });
-    }
-  }
-
-  // Fallback for unsupported methods
-  res.setHeader('Allow', ['GET', 'DELETE']);
-  res.status(405).json({ error: `Method ${req.method} not allowed` });
+  if (req.method === 'GET') return handleGET(req, res);
+  if (req.method === 'POST') return handlePOST(req, res);
+  
+  res.status(405).json({ error: 'Method not allowed' });
 }
