@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { describe, test, expect, beforeEach } from '@jest/globals';
 import handler from '../api/complaints/index.js';
 
