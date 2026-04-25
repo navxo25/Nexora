@@ -37,7 +37,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Rate Limiting Middleware
-/*
 app.use(async (req, res, next) => {
   // Get the real client IP (Vercel sets x-forwarded-for)
   const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || 'unknown';
@@ -50,7 +49,7 @@ app.use(async (req, res, next) => {
   }
   next();
 });
-*/
+
 
 // Health check
 app.get('/api/health', (req, res) => {
