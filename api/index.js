@@ -2,20 +2,26 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
-// Only importing files that ACTUALLY exist in your repo right now
+// Auth Handlers
 import registerHandler from './auth/register.js';
 import loginHandler from './auth/login.js';
 import verifyOtpHandler from './auth/verify-otp.js';
 import requestOtpHandler from './auth/request-otp.js'; 
 import meHandler from './auth/me.js';
+
+// Complaint Handlers
 import complaintsHandler from './complaints/index.js';
 import statusHandler from './complaints/[id]/status.js';
 import geojsonHandler from './complaints/geojson.js';
 import complaintByIdHandler from './complaints/[id]/index.js';
 
+// Admin Handlers (Only stats imported for now)
+import statsHandler from './admin/stats.js';
+
 dotenv.config();
 const app = express();
 
+// Security Middleware
 app.use(cors({
   origin: process.env.CORS_ORIGIN || '*',
   credentials: true
@@ -32,8 +38,8 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Active Routes
-// Using app.all() lets the individual handlers manage their own 405 Method Not Allowed logic
+// --- Active Routes ---
+
 app.all('/api/auth/register', registerHandler);
 app.all('/api/auth/login', loginHandler);
 app.all('/api/auth/verify-otp', verifyOtpHandler);
@@ -42,17 +48,19 @@ app.all('/api/auth/me', meHandler);
 
 app.all('/api/complaints', complaintsHandler);
 app.all('/api/complaints/geojson', geojsonHandler);
-
 app.all('/api/complaints/:id', complaintByIdHandler);
 app.all('/api/complaints/:id/status', statusHandler);
-// Temporarily disabled routes (Missing files)
-// app.get('/api/complaints/:id', complaintIdHandler);
-// app.get('/api/admin/stats', statsHandler);
-// app.get('/api/admin/queue', queueHandler);
-// app.get('/api/admin/users', usersHandler);
-// app.patch('/api/admin/users/:id', userIdHandler);
 
-// Error handling
+// Admin Routes (Only stats is active)
+app.get('/api/admin/stats', statsHandler);
+
+// Temporarily disabled routes (Missing files)
+// app.get('/api/admin/queue', queueHandler);
+// app.get('/api/admin/users', adminUsersHandler);
+// app.patch('/api/admin/users/:id', adminUserByIdHandler);
+
+// --- Error Handling ---
+
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(err.status || 500).json({
