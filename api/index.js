@@ -2,34 +2,32 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
-// Auth Handlers
-import registerHandler from './auth/register.js';
-import loginHandler from './auth/login.js';
-import verifyOtpHandler from './auth/verify-otp.js';
-import requestOtpHandler from './auth/request-otp.js'; 
-import meHandler from './auth/me.js';
+// Auth Handlers (Now importing from controllers)
+import registerHandler from '../controllers/auth/register.js';
+import loginHandler from '../controllers/auth/login.js';
+import verifyOtpHandler from '../controllers/auth/verify-otp.js';
+import requestOtpHandler from '../controllers/auth/request-otp.js'; 
+import meHandler from '../controllers/auth/me.js';
 
 // Complaint Handlers
-import complaintsHandler from './complaints/index.js';
-import statusHandler from './complaints/[id]/status.js';
-import geojsonHandler from './complaints/geojson.js';
-import complaintByIdHandler from './complaints/[id]/index.js';
+import complaintsHandler from '../controllers/complaints/index.js';
+import statusHandler from '../controllers/complaints/[id]/status.js';
+import geojsonHandler from '../controllers/complaints/geojson.js';
+import complaintByIdHandler from '../controllers/complaints/[id]/index.js';
 
 // Admin Handlers
-import statsHandler from './admin/stats.js';
-import queueHandler from './admin/queue.js';
-import adminUsersHandler from './admin/users/index.js';
-import adminUserByIdHandler from './admin/users/[id].js';
+import statsHandler from '../controllers/admin/stats.js';
+import queueHandler from '../controllers/admin/queue.js';
+import adminUsersHandler from '../controllers/admin/users/index.js';
+import adminUserByIdHandler from '../controllers/admin/users/[id].js';
 
 dotenv.config();
 const app = express();
 
 // Security Middleware
 app.use(cors({
-  // Only allow the frontend origin — never use * in production
   origin: process.env.CORS_ORIGIN,
   credentials: true,
-  // Only allow the HTTP methods your API actually uses
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
