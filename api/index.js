@@ -1,13 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { isRateLimited } from '../lib/rateLimit.js';
 import * as Sentry from '@sentry/node';
+import { isRateLimited } from '../lib/rateLimit.js';
 
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-  environment: process.env.NODE_ENV || 'development'
-});
 // Auth Handlers (Now importing from controllers)
 import registerHandler from '../controllers/auth/register.js';
 import loginHandler from '../controllers/auth/login.js';
@@ -27,7 +23,15 @@ import queueHandler from '../controllers/admin/queue.js';
 import adminUsersHandler from '../controllers/admin/users/index.js';
 import adminUserByIdHandler from '../controllers/admin/users/[id].js';
 
+// Load environment variables first
 dotenv.config();
+
+// Initialize Sentry right after env vars load
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV || 'development'
+});
+
 const app = express();
 
 // Security Middleware
@@ -54,7 +58,6 @@ app.use(async (req, res, next) => {
   }
   next();
 });
-
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -86,6 +89,10 @@ app.patch('/api/admin/users/:id', adminUserByIdHandler);
 
 // --- Error Handling ---
 
+// The Sentry error handler MUST be before any other error middleware and after all controllers
+app.use(Sentry.Handlers.errorHandler());
+
+// Your custom error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(err.status || 500).json({
@@ -93,6 +100,7 @@ app.use((err, req, res, next) => {
   });
 });
 
+// 404 Fallback
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
