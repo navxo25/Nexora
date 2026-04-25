@@ -1,11 +1,4 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/index.js",
-      "use": "@vercel/node"
-    }
-  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
@@ -14,7 +7,7 @@
   ],
   "crons": [
     {
-      "path": "/api/check-sla", 
+      "path": "/api/check-sla",
       "schedule": "0 * * * *"
     }
   ]
