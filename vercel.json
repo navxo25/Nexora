@@ -9,5 +9,11 @@
   "rewrites": [
     { "source": "/(api/.*)", "destination": "/api/index.js" },
     { "source": "/(.*)", "destination": "/api/index.js" }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/check-sla",
+      "schedule": "0 * * * *"
+    }
   ]
 }
