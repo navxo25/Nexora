@@ -2,7 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { isRateLimited } from '../lib/rateLimit.js';
+import * as Sentry from '@sentry/node';
 
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV || 'development'
+});
 // Auth Handlers (Now importing from controllers)
 import registerHandler from '../controllers/auth/register.js';
 import loginHandler from '../controllers/auth/login.js';
