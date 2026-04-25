@@ -37,7 +37,7 @@ async function handlePOST(req, res) {
     return res.status(401).json({ error: 'Unauthorized: Please log in to submit a complaint' });
   }
 
-  // 2. Extract fields from the request body (Note: userId is no longer accepted from the body)
+  // 2. Extract fields from the request body
   const { title, description, category, severity, latitude, longitude, ward } = req.body;
   
   // 3. Lock the user ID to the person who is actually logged in
@@ -48,6 +48,20 @@ async function handlePOST(req, res) {
   }
 
   try {
+    // ─── CHECK FOR DUPLICATES ──────────────────────────────────────────
+    const { data: nearby } = await supabaseAdmin.rpc('find_nearby_complaint', {
+      cat: category,
+      lon: parseFloat(longitude),
+      lat: parseFloat(latitude)
+    });
+
+    let duplicate_warning = null;
+    if (nearby && nearby.length > 0) {
+      duplicate_warning = `Similar complaint already exists (ID: ${nearby[0].id})`;
+    }
+    // ───────────────────────────────────────────────────────────────────
+
+    // 4. Insert the new complaint
     const { data, error } = await supabaseAdmin.from('complaints').insert({
       user_id: finalUserId,
       title,
@@ -63,9 +77,11 @@ async function handlePOST(req, res) {
 
     if (error) return res.status(400).json({ error: error.message });
 
+    // 5. Return success response with duplicate warning if applicable
     res.status(201).json({ 
       data: data[0], 
-      message: 'Complaint created successfully' 
+      message: 'Complaint created successfully',
+      duplicate_warning
     });
   } catch (error) {
     console.error('Error creating complaint:', error);
