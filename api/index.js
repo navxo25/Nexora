@@ -1,6 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import statsHandler from './admin/stats.js';
+import queueHandler from './admin/queue.js';
+import adminUsersHandler from './admin/users/index.js';
+import adminUserByIdHandler from './admin/users/[id].js';
 
 // Auth Handlers
 import registerHandler from './auth/register.js';
@@ -53,6 +57,10 @@ app.all('/api/complaints/:id/status', statusHandler);
 
 // Admin Routes (Only stats is active)
 app.get('/api/admin/stats', statsHandler);
+app.get('/api/admin/stats', statsHandler);
+app.get('/api/admin/queue', queueHandler);
+app.get('/api/admin/users', adminUsersHandler);
+app.patch('/api/admin/users/:id', adminUserByIdHandler);
 
 // Temporarily disabled routes (Missing files)
 // app.get('/api/admin/queue', queueHandler);
