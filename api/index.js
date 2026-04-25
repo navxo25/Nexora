@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { isRateLimited } from '../lib/rateLimit.js';
 
 // Auth Handlers (Now importing from controllers)
 import registerHandler from '../controllers/auth/register.js';
@@ -34,6 +35,20 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Rate Limiting Middleware
+app.use(async (req, res, next) => {
+  // Get the real client IP (Vercel sets x-forwarded-for)
+  const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || 'unknown';
+
+  if (await isRateLimited(ip)) {
+    return res.status(429).json({
+      error: 'Too many requests. Limit: 100 per hour.',
+      retry_after: 3600
+    });
+  }
+  next();
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
