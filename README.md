@@ -110,7 +110,8 @@ docs/                   # Documentation
 ├── API.md              # API documentation
 ├── DATABASE.md         # Database schema docs
 ├── SETUP.md            # Setup guide
-└── DEPLOYMENT.md       # Deployment guide
+├── DEPLOYMENT.md       # Deployment guide
+└── VERCEL_ANALYTICS.md # Vercel Analytics integration guide
 \`\`\`
 
 ## Environment Variables
