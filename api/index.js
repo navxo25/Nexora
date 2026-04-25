@@ -1,10 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import statsHandler from './admin/stats.js';
-import queueHandler from './admin/queue.js';
-import adminUsersHandler from './admin/users/index.js';
-import adminUserByIdHandler from './admin/users/[id].js';
 
 // Auth Handlers
 import registerHandler from './auth/register.js';
@@ -19,17 +15,25 @@ import statusHandler from './complaints/[id]/status.js';
 import geojsonHandler from './complaints/geojson.js';
 import complaintByIdHandler from './complaints/[id]/index.js';
 
-// Admin Handlers (Only stats imported for now)
+// Admin Handlers
 import statsHandler from './admin/stats.js';
+import queueHandler from './admin/queue.js';
+import adminUsersHandler from './admin/users/index.js';
+import adminUserByIdHandler from './admin/users/[id].js';
 
 dotenv.config();
 const app = express();
 
 // Security Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true
+  // Only allow the frontend origin — never use * in production
+  origin: process.env.CORS_ORIGIN,
+  credentials: true,
+  // Only allow the HTTP methods your API actually uses
+  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -55,17 +59,11 @@ app.all('/api/complaints/geojson', geojsonHandler);
 app.all('/api/complaints/:id', complaintByIdHandler);
 app.all('/api/complaints/:id/status', statusHandler);
 
-// Admin Routes (Only stats is active)
-app.get('/api/admin/stats', statsHandler);
+// Admin Routes 
 app.get('/api/admin/stats', statsHandler);
 app.get('/api/admin/queue', queueHandler);
 app.get('/api/admin/users', adminUsersHandler);
 app.patch('/api/admin/users/:id', adminUserByIdHandler);
-
-// Temporarily disabled routes (Missing files)
-// app.get('/api/admin/queue', queueHandler);
-// app.get('/api/admin/users', adminUsersHandler);
-// app.patch('/api/admin/users/:id', adminUserByIdHandler);
 
 // --- Error Handling ---
 
