@@ -99,6 +99,13 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Start a local server if we aren't in Vercel production
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(3000, () => {
+    console.log('Local server is actively listening on port 3000!');
+  });
+}
+
 // 404 Fallback
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
