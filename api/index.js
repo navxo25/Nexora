@@ -90,8 +90,7 @@ app.patch('/api/admin/users/:id', adminUserByIdHandler);
 // --- Error Handling ---
 
 // The Sentry error handler MUST be before any other error middleware and after all controllers
-app.use(Sentry.Handlers.errorHandler());
-
+Sentry.setupExpressErrorHandler(app);
 // Your custom error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
