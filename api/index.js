@@ -107,8 +107,4 @@ app.use((req, res) => {
 export default app;
 
 // Start a local server if we aren't in Vercel production
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(3000, () => {
-    console.log('Local server is actively listening on port 3000!');
-  });
-}
+app.listen(3000, () => console.log("SERVER IS ALIVE ON PORT 3000!"));
