@@ -10,6 +10,7 @@
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --coverage --forceExit"
   },
   "dependencies": {
+    "@sentry/node": "^10.50.0",
     "@supabase/supabase-js": "^2.39.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
