@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../../lib/supabase.js';
 import { requireAuth } from '../middleware/auth.js';
+import { analyseComplaintPhoto } from '../../lib/analysePhoto.js';
 
 async function handleGET(req, res) {
   const { ward, status, limit = '50', offset = '0' } = req.query;
@@ -30,7 +31,7 @@ async function handleGET(req, res) {
 }
 
 async function handlePOST(req, res) {
-  // 1. STRICT AUTH CHECK: Request must have a valid token
+  // 1. STRICT AUTH CHECK
   const { data: authData, error: authError } = await requireAuth(req);
   
   if (authError || !authData?.id) {
@@ -38,9 +39,8 @@ async function handlePOST(req, res) {
   }
 
   // 2. Extract fields from the request body
-  const { title, description, category, severity, latitude, longitude, ward } = req.body;
+  const { title, description, category, severity, latitude, longitude, ward, photo_urls } = req.body;
   
-  // 3. Lock the user ID to the person who is actually logged in
   const finalUserId = authData.id; 
 
   if (!title || !category || !latitude || !longitude || !ward) {
@@ -59,7 +59,6 @@ async function handlePOST(req, res) {
     if (nearby && nearby.length > 0) {
       duplicate_warning = `Similar complaint already exists (ID: ${nearby[0].id})`;
     }
-    // ───────────────────────────────────────────────────────────────────
 
     // 4. Insert the new complaint
     const { data, error } = await supabaseAdmin.from('complaints').insert({
@@ -72,17 +71,37 @@ async function handlePOST(req, res) {
       longitude: parseFloat(longitude),
       location: `SRID=4326;POINT(${longitude} ${latitude})`,
       ward,
+      photo_urls: photo_urls || [],
       status: 'submitted'
-    }).select();
+    }).select().single(); // using .single() since we want the specific row back
 
     if (error) return res.status(400).json({ error: error.message });
 
-    // 5. Return success response with duplicate warning if applicable
+    // 5. Return success response
     res.status(201).json({ 
-      data: data[0], 
+      data: data, 
       message: 'Complaint created successfully',
       duplicate_warning
     });
+
+    // 6. Run CV analysis in background — non-blocking
+    if (data?.photo_urls?.length > 0) {
+      analyseComplaintPhoto(data.photo_urls[0])
+        .then(async (result) => {
+          await supabaseAdmin
+            .from('complaints')
+            .update({
+              cv_analysis: result,
+              // Auto-bump severity if CV is confident and finds it worse
+              ...(result.confidence > 0.8 && result.severity_estimate > data.severity
+                ? { severity: result.severity_estimate }
+                : {})
+            })
+            .eq('id', data.id);
+        })
+        .catch(err => console.error('CV analysis failed:', err));
+    }
+
   } catch (error) {
     console.error('Error creating complaint:', error);
     res.status(500).json({ error: 'Failed to create complaint' });
