@@ -9,6 +9,10 @@
     {
       "path": "/api/check-sla",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/ward-scoring",
+      "schedule": "0 2 * * 0"
     }
   ]
 }
