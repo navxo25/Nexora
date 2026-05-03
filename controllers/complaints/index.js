@@ -3,12 +3,12 @@ import { supabaseAdmin } from '../../lib/supabase.js';
 import { translateToEnglish } from '../../lib/translate.js';
 
 export default async function handler(req, res) {
-  // 1. Resolve the city for all requests in this file
+  // 1. Resolve city context (Mumbai, Lagos, etc.)
   const { city, error: cityErr } = await resolveCity(req);
   if (cityErr) return res.status(400).json({ error: cityErr });
 
   try {
-    // GET: Fetch all complaints for the specific city
+    // GET: Fetch city-specific complaints
     if (req.method === 'GET') {
       const { data, error } = await supabaseAdmin
         .from('complaints')
@@ -20,21 +20,21 @@ export default async function handler(req, res) {
       return res.status(200).json(data);
     }
 
-    // POST: Create a new complaint with Auto-Translation
+    // POST: Create complaint with Multi-Language Support
     if (req.method === 'POST') {
       const { description, ...rest } = req.body;
 
-      // 2. Use Gemini to translate if the city's default language isn't English
-      // This happens silently before saving to the DB
-      const descriptionEn = await translateToEnglish(description, city.default_lang);
+      // 2. Auto-detect and translate to English
+      // This handles Marathi, Hindi, Yoruba, etc. in one go
+      const descriptionEn = await translateToEnglish(description);
       
       const { data, error } = await supabaseAdmin
         .from('complaints')
         .insert({
           ...rest,
-          description,
-          description_en: descriptionEn, // Storing the AI translation
-          lang: city.default_lang,       // Storing the source language (e.g., 'yo', 'id')
+          description,            // Original (e.g. Marathi)
+          description_en: descriptionEn, // Translation (English)
+          lang: 'auto',           // Indicates auto-detected
           city_id: city.id
         })
         .select()
@@ -44,11 +44,10 @@ export default async function handler(req, res) {
       return res.status(201).json(data);
     }
 
-    // Reject other methods
     return res.status(405).json({ error: 'Method not allowed' });
     
   } catch (error) {
-    console.error('Error in complaints/index:', error);
+    console.error('Complaints Controller Error:', error);
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
