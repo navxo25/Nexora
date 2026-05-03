@@ -1,36 +1,37 @@
+import { resolveCity } from '../../lib/city.js';
 import { supabaseAdmin } from '../../lib/supabase.js';
-import { requireAuth } from '../middleware/auth.js';
 
 export default async function handler(req, res) {
+  // 1. Resolve the city context
+  const { city, error: cityErr } = await resolveCity(req);
+  if (cityErr) return res.status(400).json({ error: cityErr });
 
-  // GET /api/political — all scorecards (public)
+  // Handle GET: Fetch politicians for this city
   if (req.method === 'GET') {
-    const { ward } = req.query;
-    let query = supabaseAdmin
-      .from('politician_stats')
+    const { data, error } = await supabaseAdmin
+      .from('politicians')
       .select('*')
-      .order('resolution_pct', { ascending: false, nullsLast: true });
+      .eq('city_id', city.id)
+      .order('name', { ascending: true });
 
-    if (ward) query = query.eq('ward', ward);
-
-    const { data, error } = await query;
-    if (error) return res.status(400).json({ error: error.message });
-    return res.status(200).json({ data });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json(data);
   }
 
-  // POST /api/political/refresh — admin only, refreshes the matview
+  // Handle POST: Add a new politician to this city
   if (req.method === 'POST') {
-    const { data: user, error: authErr } = await requireAuth(req);
-    if (authErr) return res.status(401).json({ error: 'Unauthorized' });
+    const { data, error } = await supabaseAdmin
+      .from('politicians')
+      .insert({ 
+        ...req.body, 
+        city_id: city.id // <-- Connects record to city
+      })
+      .select()
+      .single();
 
-    const { data: profile } = await supabaseAdmin
-      .from('users').select('role').eq('id', user.id).single();
-    if (profile?.role !== 'admin')
-      return res.status(403).json({ error: 'Admin only' });
-
-    await supabaseAdmin.rpc('refresh_politician_stats');
-    return res.status(200).json({ message: 'Politician stats refreshed' });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(201).json(data);
   }
 
-  res.status(405).json({ error: 'Method not allowed' });
+  return res.status(405).json({ error: 'Method not allowed' });
 }
