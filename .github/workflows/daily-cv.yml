@@ -1,0 +1,19 @@
+name: Nightly Computer Vision Cron
+
+on:
+  schedule:
+    # Runs at 02:00 AM every single day
+    - cron: '0 2 * * *'
+  
+  workflow_dispatch: 
+
+jobs:
+  run-cv-cron:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Ping Vercel Computer Vision API
+        run: |
+          curl -X GET "${{ secrets.VERCEL_PRODUCTION_URL }}/api/cron?task=cv" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          -f
