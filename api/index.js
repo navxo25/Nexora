@@ -23,6 +23,10 @@ import queueHandler from '../controllers/admin/queue.js';
 import adminUsersHandler from '../controllers/admin/users/index.js';
 import adminUserByIdHandler from '../controllers/admin/users/[id].js';
 
+// Contractor Handlers
+import contractorsHandler from '../controllers/contractors/index.js';
+import contractorByIdHandler from '../controllers/contractors/[id].js'; 
+
 // Load environment variables first
 dotenv.config();
 
@@ -87,10 +91,17 @@ app.get('/api/admin/queue', queueHandler);
 app.get('/api/admin/users', adminUsersHandler);
 app.patch('/api/admin/users/:id', adminUserByIdHandler);
 
+// Contractor Routes
+app.get('/api/contractors', contractorsHandler);
+app.post('/api/contractors', contractorsHandler);
+app.get('/api/contractors/:id', contractorByIdHandler);
+app.patch('/api/contractors/:id/complete', contractorByIdHandler);
+
 // --- Error Handling ---
 
 // The Sentry error handler MUST be before any other error middleware and after all controllers
 Sentry.setupExpressErrorHandler(app);
+
 // Your custom error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err);
