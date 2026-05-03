@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '../lib/supabase.js';
 import { resolveCity } from '../lib/city.js';
 
-// Simple in-memory rate limiter (resets on cold start — good enough for free tier)
+// Simple in-memory rate limiter (resets on cold start)
 const rateLimits = new Map();
 function isRateLimited(ip) {
   const now = Date.now();
@@ -15,7 +15,7 @@ function isRateLimited(ip) {
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'GET only' });
 
-  // 1. Check Rate Limit (Applies to both JSON and CSV requests)
+  // 1. Check Rate Limit
   const ip = req.headers['x-forwarded-for'] || 'unknown';
   if (isRateLimited(ip)) return res.status(429).json({ error: 'Rate limit: 100 requests/hour' });
 
@@ -43,6 +43,28 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="nexora-${city.slug}-${new Date().toISOString().slice(0,10)}.csv"`);
     return res.status(200).send(csv);
+  }
+
+  // =======================================================================
+  // WARD PRESCRIPTIONS LOGIC (Triggered by ?type=prescriptions)
+  // =======================================================================
+  if (req.query.type === 'prescriptions') {
+    const { ward } = req.query;
+    let query = supabaseAdmin
+      .from('ward_prescriptions')
+      .select('ward, health_score, summary, prescription, top_categories, complaint_count, open_count, generated_at')
+      .eq('city_id', city.id)
+      .order('generated_at', { ascending: false });
+
+    if (ward) {
+      query = query.eq('ward', ward).limit(1);
+    } else {
+      query = supabaseAdmin.from('ward_prescriptions').select('*').eq('city_id', city.id).order('health_score', { ascending: true });
+    }
+
+    const { data, error } = await query;
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json({ data, city: city.slug });
   }
 
   // =======================================================================
