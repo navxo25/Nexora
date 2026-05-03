@@ -1,3 +1,4 @@
+import { resolveCity } from '../../lib/city.js';
 import { supabaseAdmin } from '../../lib/supabase.js';
 import { requireAuth } from '../middleware/auth.js';
 import { analyseComplaintPhoto } from '../../lib/analysePhoto.js';
