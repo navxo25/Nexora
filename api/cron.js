@@ -116,3 +116,45 @@ Respond with ONLY valid JSON (no markdown), this exact shape:
   // If the query parameter is missing or wrong
   return res.status(400).json({ error: 'Unknown or missing task parameter' });
 }
+// =======================================================================
+  // TASK 4: SATELLITE DATA (?task=satellite)
+  // =======================================================================
+  if (task === 'satellite') {
+    const { data: cities } = await supabaseAdmin
+      .from('cities')
+      .select('id, slug, bbox_sw_lat, bbox_sw_lng, bbox_ne_lat, bbox_ne_lng')
+      .eq('active', true);
+
+    for (const city of cities) {
+      // Centre of bounding box
+      const lat = (city.bbox_sw_lat + city.bbox_ne_lat) / 2;
+      const lng = (city.bbox_sw_lng + city.bbox_ne_lng) / 2;
+
+      // Open-Meteo: free, no key, returns last 7 days of weather
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=precipitation_sum,temperature_2m_max&past_days=7&forecast_days=0&timezone=auto`;
+
+      try {
+        const resp = await fetch(url);
+        const data = await resp.json();
+        const days = data.daily;
+
+        if (days?.precipitation_sum) {
+          const rows = days.time.map((t, i) => ({
+            city_id:     city.id,
+            obs_type:    'rainfall',
+            value:       days.precipitation_sum[i] || 0,
+            unit:        'mm',
+            source:      'open-meteo',
+            observed_at: `${t}T12:00:00Z`
+          }));
+          await supabaseAdmin.from('satellite_observations').upsert(rows, { onConflict: 'city_id,obs_type,observed_at' });
+        }
+      } catch (e) { console.error(`Weather fetch failed for ${city.slug}:`, e.message); }
+    }
+
+    return res.status(200).json({ message: 'Satellite data refreshed' });
+  }
+
+  // If the query parameter is missing or wrong
+  return res.status(400).json({ error: 'Unknown or missing task parameter' });
+}
