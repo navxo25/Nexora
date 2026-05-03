@@ -1,4 +1,4 @@
-name: Weekly Ward Scoring Cron
+name: Weekly Ward Scoring & Satellite Cron
 
 on:
   schedule:
@@ -9,7 +9,7 @@ on:
   workflow_dispatch: 
 
 jobs:
-  run-weekly-cron:
+  run-weekly-crons:
     runs-on: ubuntu-latest
     
     steps:
@@ -22,9 +22,5 @@ jobs:
       - name: Ping Vercel Satellite Cron
         run: |
           curl -X GET "${{ secrets.VERCEL_PRODUCTION_URL }}/api/cron?task=satellite" \
-          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-          -f
-        run: |
-          curl -X GET "${{ secrets.VERCEL_PRODUCTION_URL }}/api/cron?task=weekly" \
           -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
           -f
