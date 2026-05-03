@@ -13,7 +13,17 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Ping Vercel Cron Endpoint
+      - name: Ping Vercel Weekly Scoring Cron
+        run: |
+          curl -X GET "${{ secrets.VERCEL_PRODUCTION_URL }}/api/cron?task=weekly" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          -f
+
+      - name: Ping Vercel Satellite Cron
+        run: |
+          curl -X GET "${{ secrets.VERCEL_PRODUCTION_URL }}/api/cron?task=satellite" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          -f
         run: |
           curl -X GET "${{ secrets.VERCEL_PRODUCTION_URL }}/api/cron?task=weekly" \
           -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
