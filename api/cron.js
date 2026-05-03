@@ -1,4 +1,4 @@
-export const maxDuration = 60; // ← Forces Vercel free tier to max timeout limit
+export const maxDuration = 60; // Forces Vercel free tier to max timeout limit
 
 import { supabaseAdmin } from '../lib/supabase.js';
 import { askGemini } from '../lib/gemini.js';
@@ -113,10 +113,7 @@ Respond with ONLY valid JSON (no markdown), this exact shape:
     }
   }
 
-  // If the query parameter is missing or wrong
-  return res.status(400).json({ error: 'Unknown or missing task parameter' });
-}
-// =======================================================================
+  // =======================================================================
   // TASK 4: SATELLITE DATA (?task=satellite)
   // =======================================================================
   if (task === 'satellite') {
