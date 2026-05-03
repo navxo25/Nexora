@@ -4,6 +4,13 @@ import { supabaseAdmin } from '../lib/supabase.js';
 import { askGemini } from '../lib/gemini.js';
 import { runWeeklyScoring } from '../lib/wardScoring.js';
 
+// Helper for Computer Vision
+async function urlToBase64(url) {
+  const resp = await fetch(url);
+  const buf = await resp.arrayBuffer();
+  return Buffer.from(buf).toString('base64');
+}
+
 export default async function handler(req, res) {
   // 1. Verify Vercel Cron Secret (Blocks unauthorized access)
   const secret = req.headers['authorization'] || req.headers['Authorization'];
@@ -104,8 +111,6 @@ Respond with ONLY valid JSON (no markdown), this exact shape:
         console.error('SLA update error:', error);
         return res.status(500).json({ error: error.message });
       }
-
-      console.log(`SLA check: marked ${data?.length ?? 0} complaints as overdue`);
       return res.status(200).json({ message: 'SLA check complete', marked_overdue: data?.length ?? 0 });
     } catch (err) {
       console.error('SLA cron error:', err);
@@ -123,11 +128,8 @@ Respond with ONLY valid JSON (no markdown), this exact shape:
       .eq('active', true);
 
     for (const city of cities) {
-      // Centre of bounding box
       const lat = (city.bbox_sw_lat + city.bbox_ne_lat) / 2;
       const lng = (city.bbox_sw_lng + city.bbox_ne_lng) / 2;
-
-      // Open-Meteo: free, no key, returns last 7 days of weather
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=precipitation_sum,temperature_2m_max&past_days=7&forecast_days=0&timezone=auto`;
 
       try {
@@ -137,19 +139,61 @@ Respond with ONLY valid JSON (no markdown), this exact shape:
 
         if (days?.precipitation_sum) {
           const rows = days.time.map((t, i) => ({
-            city_id:     city.id,
-            obs_type:    'rainfall',
-            value:       days.precipitation_sum[i] || 0,
-            unit:        'mm',
-            source:      'open-meteo',
-            observed_at: `${t}T12:00:00Z`
+            city_id: city.id, obs_type: 'rainfall', value: days.precipitation_sum[i] || 0,
+            unit: 'mm', source: 'open-meteo', observed_at: `${t}T12:00:00Z`
           }));
           await supabaseAdmin.from('satellite_observations').upsert(rows, { onConflict: 'city_id,obs_type,observed_at' });
         }
       } catch (e) { console.error(`Weather fetch failed for ${city.slug}:`, e.message); }
     }
-
     return res.status(200).json({ message: 'Satellite data refreshed' });
+  }
+
+  // =======================================================================
+  // TASK 5: COMPUTER VISION (?task=cv)
+  // =======================================================================
+  if (task === 'cv') {
+    const { data: complaints } = await supabaseAdmin
+      .from('complaints')
+      .select('id, photo_urls')
+      .is('cv_processed_at', null)
+      .not('photo_urls', 'eq', '[]')
+      .limit(50); // safe free-tier limit
+
+    let processed = 0;
+    for (const c of complaints) {
+      const photos = c.photo_urls || [];
+      if (!photos.length) continue;
+
+      try {
+        const prompt = `Look at this urban infrastructure photo. Classify the main defect visible. Respond with ONLY valid JSON: {"label": "", "confidence": <0.0 to 1.0>}`;
+        const base64Data = await urlToBase64(photos[0]);
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${process.env.GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: prompt },
+                { inline_data: { mime_type: 'image/jpeg', data: base64Data } }
+              ]
+            }],
+            generationConfig: { maxOutputTokens: 100, temperature: 0.1 }
+          })
+        });
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+        const { label, confidence } = JSON.parse(text.replace(/```json|```/g, '').trim());
+
+        await supabaseAdmin.from('complaints').update({
+          cv_label: label, cv_confidence: confidence, cv_processed_at: new Date()
+        }).eq('id', c.id);
+        processed++;
+      } catch (e) { console.error(`CV failed for ${c.id}:`, e.message); }
+    }
+    return res.status(200).json({ message: 'CV processing complete', processed });
   }
 
   // If the query parameter is missing or wrong
