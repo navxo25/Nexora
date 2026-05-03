@@ -1,5 +1,6 @@
 import { resolveCity } from '../../lib/city.js';
 import { supabaseAdmin } from '../../lib/supabase.js';
+import { translateToEnglish } from '../../lib/translate.js';
 
 export default async function handler(req, res) {
   // 1. Resolve the city for all requests in this file
@@ -12,22 +13,29 @@ export default async function handler(req, res) {
       const { data, error } = await supabaseAdmin
         .from('complaints')
         .select('*')
-        .eq('city_id', city.id) // <-- Filter by city
+        .eq('city_id', city.id)
         .order('created_at', { ascending: false });
 
       if (error) return res.status(500).json({ error: error.message });
       return res.status(200).json(data);
     }
 
-    // POST: Create a new complaint tagged to the specific city
+    // POST: Create a new complaint with Auto-Translation
     if (req.method === 'POST') {
-      const payload = req.body;
+      const { description, ...rest } = req.body;
+
+      // 2. Use Gemini to translate if the city's default language isn't English
+      // This happens silently before saving to the DB
+      const descriptionEn = await translateToEnglish(description, city.default_lang);
       
       const { data, error } = await supabaseAdmin
         .from('complaints')
         .insert({
-          ...payload,
-          city_id: city.id // <-- Tag the new record with the city ID
+          ...rest,
+          description,
+          description_en: descriptionEn, // Storing the AI translation
+          lang: city.default_lang,       // Storing the source language (e.g., 'yo', 'id')
+          city_id: city.id
         })
         .select()
         .single();
