@@ -1,3 +1,5 @@
+export const maxDuration = 60; // ← Add this at the top!
+
 import { supabaseAdmin } from '../../lib/supabase.js';
 import { askGemini } from '../../lib/gemini.js';
 
