@@ -1,17 +1,11 @@
 {
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.js"
-    }
-  ],
   "crons": [
     {
-      "path": "/api/cron/generate-prescriptions",
+      "path": "/api/cron?task=prescriptions",
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/cron/check-sla",
+      "path": "/api/cron?task=sla",
       "schedule": "0 4 * * *"
     }
   ]
