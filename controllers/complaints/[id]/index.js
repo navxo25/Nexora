@@ -1,59 +1,57 @@
+import { resolveCity } from '../../../lib/city.js'; 
 import { supabaseAdmin } from '../../../lib/supabase.js';
 
 export default async function handler(req, res) {
-  // Check req.params (Express) first, fallback to req.query (Vercel Serverless)
-  const id = req.params?.id || req.query?.id;
+  const { id } = req.query;
 
-  if (!id) {
-    return res.status(400).json({ error: 'Complaint ID is required' });
-  }
+  // 1. Resolve the city
+  const { city, error: cityErr } = await resolveCity(req);
+  if (cityErr) return res.status(400).json({ error: cityErr });
 
-  // Handle GET: Fetch a single complaint
-  if (req.method === 'GET') {
-    try {
+  try {
+    // GET: Fetch specific complaint details
+    if (req.method === 'GET') {
       const { data, error } = await supabaseAdmin
         .from('complaints')
-        .select(`
-          *,
-          user:user_id (
-            id,
-            email
-          )
-        `)
+        .select('*')
         .eq('id', id)
+        .eq('city_id', city.id) // <-- Security: Ensures ID belongs to the active city
         .single();
 
-      if (error || !data) {
-        return res.status(404).json({ error: 'Complaint not found' });
-      }
-
-      return res.status(200).json({ data });
-    } catch (error) {
-      console.error('Error fetching complaint:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json(data);
     }
-  }
 
-  // Handle DELETE: Remove a complaint
-  if (req.method === 'DELETE') {
-    try {
+    // PATCH: Update complaint (e.g., status change)
+    if (req.method === 'PATCH') {
+      const { data, error } = await supabaseAdmin
+        .from('complaints')
+        .update(req.body)
+        .eq('id', id)
+        .eq('city_id', city.id) // <-- Security: Prevents updating cross-city data
+        .select()
+        .single();
+
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json(data);
+    }
+
+    // DELETE: Remove a complaint
+    if (req.method === 'DELETE') {
       const { error } = await supabaseAdmin
         .from('complaints')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('city_id', city.id); // <-- Security: Prevents cross-city deletion
 
-      if (error) {
-        return res.status(400).json({ error: error.message });
-      }
-      
-      return res.status(200).json({ message: 'Complaint deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting complaint:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(204).end();
     }
-  }
 
-  // Fallback for unsupported methods
-  res.setHeader('Allow', ['GET', 'DELETE']);
-  res.status(405).json({ error: `Method ${req.method} not allowed` });
+    return res.status(405).json({ error: 'Method not allowed' });
+
+  } catch (error) {
+    console.error(`Error in complaints/${id}:`, error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
 }
