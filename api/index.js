@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import * as Sentry from '@sentry/node';
 import { resolveCity } from '../lib/city.js';
 import { isRateLimited } from '../lib/rateLimit.js';
+import { supabaseAdmin } from '../lib/supabase.js'; // Added for inline routes
+import { requireAuth } from './middleware/auth.js'; // Ensure path matches your project
 
 // Auth Handlers
 import registerHandler from '../controllers/auth/register.js';
@@ -44,17 +46,82 @@ Sentry.init({
 });
 
 // --- GLOBAL CITY RESOLVER MIDDLEWARE ---
-// This ensures every request through the Express router knows its city context
 app.use(async (req, res, next) => {
   const { city, error } = await resolveCity(req);
   if (error) return res.status(400).json({ error });
   
-  // Attach city to request for use in handlers
   req.city = city;
   next();
 });
 
 // --- ROUTES ---
+
+// 1. City Onboarding (Step 4 of Playbook)
+app.post('/api/cities/onboard', async (req, res) => {
+  try {
+    const { data: user, error: authErr } = await requireAuth(req);
+    if (authErr) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { data: profile } = await supabaseAdmin.from('users').select('role').eq('id', user.id).single();
+    if (profile?.role !== 'admin') return res.status(403).json({ error: 'Superadmin only' });
+
+    const { name, country, slug, timezone, default_lang, wards = [], bbox } = req.body;
+    if (!name || !country || !slug) return res.status(400).json({ error: 'name, country, slug required' });
+
+    const { data: city, error: cityErr } = await supabaseAdmin
+      .from('cities')
+      .insert({
+        slug: slug.toLowerCase(),
+        name, country, timezone: timezone || 'UTC',
+        default_lang: default_lang || 'en',
+        ...(bbox && { bbox_sw_lat: bbox.sw_lat, bbox_sw_lng: bbox.sw_lng, bbox_ne_lat: bbox.ne_lat, bbox_ne_lng: bbox.ne_lng })
+      })
+      .select().single();
+
+    if (cityErr) return res.status(400).json({ error: cityErr.message });
+
+    if (wards.length > 0) {
+      const wardRows = wards.map(w => ({ city_id: city.id, name: w }));
+      await supabaseAdmin.from('city_wards').insert(wardRows);
+    }
+
+    return res.status(201).json({ message: `City ${name} is live!`, slug: city.slug });
+  } catch (error) {
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// 2. Public Open Data API (Module 05 of Playbook)
+app.get('/api/public/data', async (req, res) => {
+  const ip = req.headers['x-forwarded-for'] || 'unknown';
+  if (isRateLimited(ip)) return res.status(429).json({ error: 'Rate limit: 100 requests/hour' });
+
+  try {
+    const { ward, format, limit = '500' } = req.query;
+
+    const { data, error } = await supabaseAdmin
+      .from('complaints')
+      .select('id, category, severity, status, ward, address, created_at')
+      .eq('city_id', req.city.id)
+      .limit(Math.min(parseInt(limit), 1000));
+
+    if (error) throw error;
+
+    if (format === 'csv') {
+      const headers = ['id', 'category', 'severity', 'status', 'ward', 'address', 'created_at'];
+      const csv = [headers.join(','), ...data.map(r => headers.map(h => JSON.stringify(r[h] || '')).join(','))].join('\n');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="nexora-${req.city.slug}.csv"`);
+      return res.status(200).send(csv);
+    }
+
+    return res.status(200).json({ city: req.city.slug, count: data.length, data });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// --- EXISTING HANDLERS ---
 
 // Auth
 app.post('/api/auth/register', registerHandler);
