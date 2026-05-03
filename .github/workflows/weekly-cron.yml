@@ -1,0 +1,20 @@
+name: Weekly Ward Scoring Cron
+
+on:
+  schedule:
+    # Runs at 00:00 (midnight) every Sunday
+    - cron: '0 0 * * 0'
+  
+  # This allows you to click a button in GitHub to test it manually!
+  workflow_dispatch: 
+
+jobs:
+  run-weekly-cron:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Ping Vercel Cron Endpoint
+        run: |
+          curl -X GET "${{ secrets.VERCEL_PRODUCTION_URL }}/api/cron?task=weekly" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          -f
