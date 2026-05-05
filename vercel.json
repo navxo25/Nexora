@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "builds": [
+  "crons": [
     {
-      "src": "api/index.js",
-      "use": "@vercel/node"
+      "path": "/api/cron?task=prescriptions",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron?task=sla",
+      "schedule": "0 4 * * *"
     }
-  ],
-  "rewrites": [
-    { "source": "/(api/.*)", "destination": "/api/index.js" },
-    { "source": "/(.*)", "destination": "/api/index.js" }
   ]
 }

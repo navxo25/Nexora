@@ -1,5 +1,6 @@
+import { jest } from '@jest/globals';
 import { describe, test, expect, beforeEach } from '@jest/globals';
-import handler from '../api/complaints/index.js';
+import handler from '../controllers/complaints/index.js';
 
 describe('Complaints API', () => {
   let mockReq, mockRes;
